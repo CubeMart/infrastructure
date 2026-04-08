@@ -1,6 +1,6 @@
 variable "project" {
   type    = string
-  default = "quantamvector"
+  default = "cubemart"
 }
 
 variable "vpc_cidr" {

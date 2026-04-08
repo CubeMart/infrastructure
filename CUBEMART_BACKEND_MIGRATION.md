@@ -269,18 +269,12 @@ straightforward as long as you keep the old bucket and old key paths intact.
 
 This is a separate change and should not be bundled into the backend rename.
 
-Changing:
+Prepared change:
 
 - `1-network/variables.tf`
 - `2-eks/variables.tf`
 
 from:
-
-```hcl
-default = "quantamvector"
-```
-
-to:
 
 ```hcl
 default = "cubemart"
@@ -294,3 +288,23 @@ can affect:
 - Kubernetes auto-discovery tags
 
 Treat that as a second migration with its own `terraform plan` review.
+
+### Exact Code Changes
+
+#### `1-network/variables.tf`
+
+```hcl
+variable "project" {
+  type    = string
+  default = "cubemart"
+}
+```
+
+#### `2-eks/variables.tf`
+
+```hcl
+variable "project" {
+  type    = string
+  default = "cubemart"
+}
+```
