@@ -1,6 +1,6 @@
-# Quantamvector — AWS Infrastructure with Terraform & Jenkins
+# CubeMart Infrastructure
 
-This repository provisions a production-ready AWS infrastructure using Terraform, organized into layered modules and automated through a Jenkins CI/CD pipeline.
+This repository provisions the AWS infrastructure for CubeMart using Terraform, organized into layered modules and automated through a Jenkins CI/CD pipeline.
 
 ---
 
