@@ -12,6 +12,7 @@ This repository provisions the AWS infrastructure for CubeMart using Terraform, 
 - [Layer 1 — Network](#layer-1--network)
 - [Layer 2 — EKS](#layer-2--eks)
 - [Remote State & Locking](#remote-state--locking)
+- [Backend Rename Plan](#backend-rename-plan)
 - [Jenkins Pipeline](#jenkins-pipeline)
 - [Jenkins Setup Requirements](#jenkins-setup-requirements)
 - [Execution Flow](#execution-flow)
@@ -258,6 +259,16 @@ Pipeline Run #1 starts apply
   → Releases lock when done
 
 Pipeline Run #2 starts at the same time
+
+---
+
+## Backend Rename Plan
+
+Legacy Terraform backend identifiers still use `quantamvector-*` names. Because
+these values are tied to live S3 state and DynamoDB locking, they should be
+migrated carefully rather than changed with a blind find/replace.
+
+See [CUBEMART_BACKEND_MIGRATION.md](/Users/gnanamanikanti/Downloads/Web/infrastructure/CUBEMART_BACKEND_MIGRATION.md) for the recommended step-by-step migration and rollback plan.
   → Tries to acquire lock
   → Lock already held by Run #1
   → Errors: "state is locked" — safely blocked
