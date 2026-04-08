@@ -12,7 +12,7 @@ This repository provisions the AWS infrastructure for CubeMart using Terraform, 
 - [Layer 1 — Network](#layer-1--network)
 - [Layer 2 — EKS](#layer-2--eks)
 - [Remote State & Locking](#remote-state--locking)
-- [Backend Rename Plan](#backend-rename-plan)
+- [Backend Configuration](#backend-configuration)
 - [Jenkins Pipeline](#jenkins-pipeline)
 - [Jenkins Setup Requirements](#jenkins-setup-requirements)
 - [Execution Flow](#execution-flow)
@@ -23,7 +23,7 @@ This repository provisions the AWS infrastructure for CubeMart using Terraform, 
 ## Architecture Overview
 
 ```
-                        AWS Account (us-west-2)
+                     AWS Account (ap-northeast-1)
 
   ┌─────────────────────────────────────────────────────────┐
   │                     VPC: 10.0.0.0/16                    │
@@ -41,9 +41,9 @@ This repository provisions the AWS infrastructure for CubeMart using Terraform, 
   │   └─────────────────────┘   └─────────────────────┘    │
   └─────────────────────────────────────────────────────────┘
 
-  S3 Bucket         → itkannadigaru-infra-statefile-backup
-  DynamoDB Table    → itkannadigaru-terraform-locks
-  EKS Cluster       → itkannadigaru
+  S3 Bucket         → cubemart-infra-statefile-backup
+  DynamoDB Table    → cubemart-terraform-locks
+  EKS Cluster       → cubemart
 ```
 
 ---
@@ -89,11 +89,11 @@ Creates the remote backend infrastructure that all other layers use to store the
 
 | Resource | Name | Purpose |
 |---|---|---|
-| `aws_s3_bucket` | `itkannadigaru-infra-statefile-backup` | Stores all `.tfstate` files remotely |
+| `aws_s3_bucket` | `cubemart-infra-statefile-backup` | Stores all `.tfstate` files remotely |
 | `aws_s3_bucket_versioning` | same bucket | Keeps history of state — allows rollback |
 | `aws_s3_bucket_server_side_encryption_configuration` | same bucket | Encrypts state files at rest (AES256) |
 | `aws_s3_bucket_public_access_block` | same bucket | Blocks all public access to state files |
-| `aws_dynamodb_table` | `itkannadigaru-terraform-locks` | Prevents concurrent terraform applies |
+| `aws_dynamodb_table` | `cubemart-terraform-locks` | Prevents concurrent terraform applies |
 
 ### Why This Runs First
 Layers 1 and 2 both declare an S3 backend. The bucket and DynamoDB table **must already exist** before `terraform init` can run on those layers. Bootstrap creates them.
@@ -144,20 +144,20 @@ Subnets are tagged so the AWS Load Balancer Controller can auto-discover them:
 ```hcl
 # Public subnets
 "kubernetes.io/role/elb"               = "1"
-"kubernetes.io/cluster/itkannadigaru"  = "shared"
+"kubernetes.io/cluster/cubemart"  = "shared"
 
 # Private subnets
 "kubernetes.io/role/internal-elb"      = "1"
-"kubernetes.io/cluster/itkannadigaru"  = "shared"
+"kubernetes.io/cluster/cubemart"  = "shared"
 ```
 
 ### Variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `project` | `itkannadigaru` | Used in all resource names and tags |
+| `project` | `cubemart` | Used in all resource names and tags |
 | `vpc_cidr` | `10.0.0.0/16` | CIDR block for the VPC |
-| `azs` | `["us-west-2a", "us-west-2b"]` | Availability zones to deploy into |
+| `azs` | `["ap-northeast-1a", "ap-northeast-1c", "ap-northeast-1d"]` | Availability zones to deploy into |
 
 ### Outputs
 
@@ -180,9 +180,9 @@ Creates the Kubernetes cluster and managed worker node group inside the network 
 data "terraform_remote_state" "network" {
   backend = "s3"
   config = {
-    bucket = "itkannadigaru-infra-statefile-backup"
-    key    = "itkannadigaru/1-network/terraform.tfstate"
-    region = "us-west-2"
+    bucket = "cubemart-infra-statefile-backup"
+    key    = "cubemart/1-network/terraform.tfstate"
+    region = "ap-northeast-1"
   }
 }
 ```
@@ -193,7 +193,7 @@ This pulls `vpc_id`, `private_subnet_ids`, and `public_subnet_ids` directly from
 
 | Setting | Value | Notes |
 |---|---|---|
-| `cluster_name` | `itkannadigaru` | |
+| `cluster_name` | `cubemart` | |
 | `cluster_version` | `1.30` | Kubernetes version |
 | `enable_irsa` | `true` | IAM Roles for Service Accounts |
 | `cluster_endpoint_public_access` | `true` | `kubectl` works from your laptop |
@@ -224,7 +224,7 @@ This pulls `vpc_id`, `private_subnet_ids`, and `public_subnet_ids` directly from
 | `cluster_name` | EKS cluster name |
 | `cluster_endpoint` | API server endpoint for `kubectl` |
 | `cluster_certificate_authority_data` | Certificate data for authentication |
-| `region` | AWS region (`us-west-2`) |
+| `region` | AWS region (`ap-northeast-1`) |
 
 ---
 
@@ -243,8 +243,8 @@ Storing state in S3 solves all of this.
 
 | Layer | S3 Key |
 |---|---|
-| 1-network | `itkannadigaru/1-network/terraform.tfstate` |
-| 2-eks | `itkannadigaru/2-eks/terraform.tfstate` |
+| 1-network | `cubemart/1-network/terraform.tfstate` |
+| 2-eks | `cubemart/2-eks/terraform.tfstate` |
 
 ### Why DynamoDB Locking?
 
@@ -259,16 +259,6 @@ Pipeline Run #1 starts apply
   → Releases lock when done
 
 Pipeline Run #2 starts at the same time
-
----
-
-## Backend Rename Plan
-
-Legacy Terraform backend identifiers still use `quantamvector-*` names. Because
-these values are tied to live S3 state and DynamoDB locking, they should be
-migrated carefully rather than changed with a blind find/replace.
-
-See [CUBEMART_BACKEND_MIGRATION.md](/Users/gnanamanikanti/Downloads/Web/infrastructure/CUBEMART_BACKEND_MIGRATION.md) for the recommended step-by-step migration and rollback plan.
   → Tries to acquire lock
   → Lock already held by Run #1
   → Errors: "state is locked" — safely blocked
@@ -276,7 +266,22 @@ See [CUBEMART_BACKEND_MIGRATION.md](/Users/gnanamanikanti/Downloads/Web/infrastr
 Run #1 finishes → lock released → Run #2 can proceed
 ```
 
-DynamoDB table used across all layers: `itkannadigaru-terraform-locks`
+---
+
+## Backend Configuration
+
+This repo is configured to use CubeMart-native Terraform backend identifiers
+from the start:
+
+- S3 bucket: `cubemart-infra-statefile-backup`
+- DynamoDB table: `cubemart-terraform-locks`
+- state keys:
+  - `cubemart/1-network/terraform.tfstate`
+  - `cubemart/2-eks/terraform.tfstate`
+
+If you are starting fresh, no legacy backend migration is required.
+
+DynamoDB table used across all layers: `cubemart-terraform-locks`
 
 ---
 
@@ -418,13 +423,13 @@ Destroy: 0-bootstrap  → removes S3 bucket and DynamoDB last
 
 | Item | Value |
 |---|---|
-| AWS Region | `us-west-2` |
-| Project Name | `itkannadigaru` |
-| EKS Cluster | `itkannadigaru` |
+| AWS Region | `ap-northeast-1` |
+| Project Name | `cubemart` |
+| EKS Cluster | `cubemart` |
 | Kubernetes Version | `1.30` |
 | VPC CIDR | `10.0.0.0/16` |
-| Availability Zones | `us-west-2a`, `us-west-2b` |
-| S3 State Bucket | `itkannadigaru-infra-statefile-backup` |
-| DynamoDB Lock Table | `itkannadigaru-terraform-locks` |
+| Availability Zones | `ap-northeast-1a`, `ap-northeast-1c`, `ap-northeast-1d` |
+| S3 State Bucket | `cubemart-infra-statefile-backup` |
+| DynamoDB Lock Table | `cubemart-terraform-locks` |
 | Node Instance Type | `c7i-flex.large` |
 | Node Count | min: 1, desired: 2, max: 3 |

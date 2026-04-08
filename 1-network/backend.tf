@@ -1,9 +1,9 @@
 terraform {
   backend "s3" {
-    bucket         = "quantamvector-infra-statefile-backup"
-    key            = "quantamvector/1-network/terraform.tfstate"
+    bucket         = "cubemart-infra-statefile-backup"
+    key            = "cubemart/1-network/terraform.tfstate"
     region         = "ap-northeast-1"
-    dynamodb_table = "quantamvector-terraform-locks"
+    dynamodb_table = "cubemart-terraform-locks"
     encrypt        = true
   }
 }

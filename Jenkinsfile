@@ -36,8 +36,8 @@ pipeline {
                 sh 'cd terraform/0-bootstrap && terraform init -input=false'
                 // Import existing resources into state if they already exist in AWS
                 // '|| true' ensures pipeline does not fail if resource does not exist yet (first run)
-                sh 'cd terraform/0-bootstrap && terraform import aws_s3_bucket.tf_state quantamvector-infra-statefile-backup || true'
-                sh 'cd terraform/0-bootstrap && terraform import aws_dynamodb_table.tf_lock quantamvector-terraform-locks || true'
+                sh 'cd terraform/0-bootstrap && terraform import aws_s3_bucket.tf_state cubemart-infra-statefile-backup || true'
+                sh 'cd terraform/0-bootstrap && terraform import aws_dynamodb_table.tf_lock cubemart-terraform-locks || true'
                 sh 'cd terraform/0-bootstrap && terraform plan -out tfplan'
                 sh 'cd terraform/0-bootstrap && terraform show -no-color tfplan > tfplan.txt'
             }
